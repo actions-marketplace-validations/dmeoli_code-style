@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-11-01
+
+### Fixed
+
+- `code-format` gives the formatters of `.code-format` the files relative to
+  its directory, from which it runs them, rather than by their absolute
+  path, which the check printed among the files out of the style
+
 ## [1.3.1] - 2026-11-01
 
 ### Added
@@ -69,7 +77,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (GitLab) and of pull requests (GitHub) with the suggestions on their
   lines, and their tests
 
-[Unreleased]: https://github.com/dmeoli/code-style/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/dmeoli/code-style/compare/v1.3.2...HEAD
+[1.3.2]: https://github.com/dmeoli/code-style/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/dmeoli/code-style/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/dmeoli/code-style/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/dmeoli/code-style/compare/v1.1.1...v1.2.0

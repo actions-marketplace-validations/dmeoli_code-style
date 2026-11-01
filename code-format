@@ -108,7 +108,8 @@ def main(argv):
         for pattern, command in rules_of(root) if root else []:
             if fnmatch.fnmatch(os.path.basename(f), pattern):
                 key = (root, tuple(command))
-                others.setdefault(key, []).append(os.path.abspath(f))
+                others.setdefault(key, []).append(
+                    os.path.relpath(os.path.abspath(f), root))
                 break
         else:
             if not quiet:
