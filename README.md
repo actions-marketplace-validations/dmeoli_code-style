@@ -146,7 +146,9 @@ with the scope `api`. A change that cannot be suggested on the lines of the
 request (e.g., in a file formatted entirely) goes as a patch into one
 comment, and the comments of the previous run are replaced at each run. A
 merge request of GitLab that has to keep a different layout says so with
-`[skip style]` in its title.
+`[skip style]` in its title. The variable `STYLE_SETUP` of the template
+holds a command run before the check (e.g., one that fetches the formatter
+of some files and writes the `.code-format` that names it).
 
 The tags are versions: `v1` follows the releases `1.x`, whose changes of
 layout are only fixes, and therefore a project that pins it is not
