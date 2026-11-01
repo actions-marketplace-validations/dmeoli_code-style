@@ -199,9 +199,13 @@ def test_style_review():
 
 def test_hook():
     d = repo()
+    hooks = os.path.join(d, '.git', 'hooks')
+    os.makedirs(hooks, exist_ok=True)
+    os.symlink(os.path.join(d, 'gone', 'pre-commit'),
+               os.path.join(hooks, 'pre-commit'))
     r = run([os.path.join(ROOT, 'hooks', 'install-hooks'), d], d)
     check(r.returncode == 0 and 'installed' in r.stdout,
-          'install-hooks installs the hook')
+          'install-hooks installs the hook, over a link to one that is gone')
     write(d, 'h.cc', BAD)
     run(['git', 'add', 'h.cc'], d)
     r = run(['git', 'commit', '-qm', 'bad'], d)

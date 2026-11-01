@@ -3,7 +3,7 @@
 # git of the repository given (the current one by default) and of all its
 # submodules, as a link, so that it follows this directory when it changes.
 # A repository that already has a pre-commit hook of its own is left alone,
-# and said.
+# and said; a link to a hook that is no longer there is replaced.
 #
 # Usage: install-hooks [REPOSITORY]
 
@@ -14,6 +14,8 @@ install_in () {
   dir=$(git -C "$1" rev-parse --path-format=absolute --git-path hooks) ||
     return
   mkdir -p "$dir"
+  # a link whose target is gone (e.g., a copy of this hook that a project
+  # no longer has) is replaced
   if [ -e "$dir/pre-commit" ] && \
      [ "$(readlink -f "$dir/pre-commit")" != "$hook" ] ; then
     echo "$1: has a pre-commit hook of its own, left alone"
