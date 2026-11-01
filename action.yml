@@ -17,7 +17,7 @@
 #             fetch-depth: 0
 #         - uses: dmeoli/code-style@v1
 
-name: Code style
+name: Code style suggestions
 description: >-
   Checks that the lines a pull request changes are in the style of
   .clang-format and of format.py, and suggests the changes that put them
