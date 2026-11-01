@@ -1,0 +1,64 @@
+# The layout of the code; format.py applies it, and then what
+# clang-format has no option for
+BasedOnStyle: LLVM
+ColumnLimit: 79
+IndentWidth: 1
+ContinuationIndentWidth: 2
+TabWidth: 8
+UseTab: ForContinuationAndIndentation
+AccessModifierOffset: 0
+IndentAccessModifiers: false
+NamespaceIndentation: None
+IndentCaseLabels: true
+IndentCaseBlocks: false
+IndentPPDirectives: Leave
+PointerAlignment: Middle
+ReferenceAlignment: Middle
+SpaceBeforeParens: Never
+SpacesInParens: Custom
+SpacesInParensOptions:
+  InConditionalStatements: true
+  InCStyleCasts: true
+  InEmptyParentheses: false
+  Other: true
+SpacesInAngles: Always
+SpacesInSquareBrackets: true
+SpaceAfterTemplateKeyword: false
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: true
+Cpp11BracedListStyle: false
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass: true
+  AfterStruct: true
+  AfterUnion: true
+  AfterEnum: false
+  AfterNamespace: true
+  AfterFunction: false
+  AfterControlStatement: Never
+  BeforeElse: true
+  BeforeCatch: true
+  BeforeWhile: false
+  SplitEmptyFunction: false
+  SplitEmptyRecord: false
+AlwaysBreakTemplateDeclarations: Yes
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+SortIncludes: Never
+SortUsingDeclarations: Never
+BreakStringLiterals: false
+ReflowComments: false
+FixNamespaceComments: false
+KeepEmptyLines:
+  AtStartOfBlock: true
+MaxEmptyLinesToKeep: 2
+AlignTrailingComments: true
+SpacesBeforeTrailingComments: 2
+SpaceInEmptyBlock: true
+AlignConsecutiveAssignments: false
+AlignAfterOpenBracket: Align
+BinPackArguments: true
+BinPackParameters: true

@@ -1,0 +1,64 @@
+# The check of the style of a pull request, as a composite action: the lines
+# that it changes in a C++ source, and the other files that the .code-format
+# of the project names, have to be in the style, else the job fails, the
+# changes that put them in it are kept as the artifact style-patch and, if
+# the job may write on pull requests, posted on the request as suggestions.
+#
+#   on: pull_request
+#   permissions:
+#     contents: read
+#     pull-requests: write        # for the suggestions, else leave it out
+#   jobs:
+#     style:
+#       runs-on: ubuntu-latest
+#       steps:
+#         - uses: actions/checkout@v4
+#           with:
+#             fetch-depth: 0
+#         - uses: dmeoli/code-style@v1
+
+name: Code style
+description: >-
+  Checks that the lines a pull request changes are in the style of
+  .clang-format and of format.py, and suggests the changes that put them
+  there.
+branding:
+  icon: align-left
+  color: purple
+
+inputs:
+  base:
+    description: The commit the pull request is compared with.
+    default: ${{ github.event.pull_request.base.sha }}
+  suggestions:
+    description: Whether to post the changes as suggestions on the request.
+    default: "true"
+  token:
+    description: The token that posts the suggestions.
+    default: ${{ github.token }}
+  clang-format-version:
+    description: The version of clang-format, from PyPI.
+    default: "22.1.5"
+
+runs:
+  using: composite
+  steps:
+    - name: Install clang-format
+      shell: bash
+      run: pip install -q "clang-format==${{ inputs.clang-format-version }}"
+
+    - name: Check the style
+      id: check
+      shell: bash
+      env:
+        STYLE_TOKEN: ${{ inputs.suggestions == 'true' && inputs.token || '' }}
+      run: |
+        git fetch --quiet origin "${{ inputs.base }}" || true
+        "${{ github.action_path }}/ci/check-style" "${{ inputs.base }}"
+
+    - name: Keep the patch
+      if: failure() && hashFiles('style.patch') != ''
+      uses: actions/upload-artifact@v4
+      with:
+        name: style-patch
+        path: style.patch

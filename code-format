@@ -1,0 +1,125 @@
+#!/usr/bin/env python3
+"""Formats the files given in the style of the project they are in.
+
+A C++ source (and a page of Doxygen, .dox) is formatted by format.py, next
+to this script, with the .clang-format found up the tree of the file. Any
+other file goes to the formatters that the project declares in a file
+.code-format at its root (the top of its git tree), one per line:
+
+    PATTERN  COMMAND...
+
+where PATTERN is a glob matched against the name of the file (e.g., *.txt)
+and COMMAND is run from the root with --check, if given, and the files
+that match it; it has to take them whole, to change nothing with --check,
+and to exit with status 1 if some file would change. Lines starting with #
+are comments. A file that no formatter takes is left alone, and said
+unless --only-known is given (as a hook of git does, which passes every
+file of a commit).
+
+Usage: code-format [--check] [--only-known]
+                   [--lines FIRST:LAST | --git | --since REF] FILE...
+--lines, --git and --since restrict format.py to the lines changed (see
+format.py); the formatters of .code-format always take the files whole.
+With --check nothing is written, the files that would change are listed,
+and the exit status is 1 if there are any.
+"""
+
+import fnmatch
+import os
+import shlex
+import subprocess
+import sys
+
+CPP = ('.h', '.hh', '.hpp', '.hxx', '.h++', '.c', '.cc', '.cpp', '.cxx',
+       '.c++', '.inc', '.ipp', '.tpp', '.dox')
+
+HERE = os.path.dirname(os.path.realpath(__file__))
+
+
+def usage():
+    """The part of the documentation that says how to run the script."""
+    return __doc__[__doc__.index('Usage:'):].rstrip()
+
+
+def root_of(path):
+    """The top of the git tree of path, or its directory if there is none."""
+    d = os.path.dirname(os.path.abspath(path))
+    r = subprocess.run(['git', 'rev-parse', '--show-toplevel'], cwd=d,
+                       capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 else d
+
+
+def rules_of(root):
+    """The pairs (pattern, command) of the .code-format of root."""
+    rules = []
+    try:
+        with open(os.path.join(root, '.code-format'),
+                  encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                pattern, _, command = line.partition(' ')
+                if command.strip():
+                    rules.append((pattern, shlex.split(command)))
+    except OSError:
+        pass
+    return rules
+
+
+def main(argv):
+    if '-h' in argv or '--help' in argv:
+        print(usage())
+        return 0
+    opts, files = [], []
+    quiet = False
+    k = 0
+    while k < len(argv):
+        a = argv[k]
+        if a in ('--lines', '--since'):
+            opts += argv[k:k + 2]
+            k += 2
+            continue
+        if a == '--only-known':
+            quiet = True
+        elif a in ('--check', '--git'):
+            opts.append(a)
+        elif a.startswith('-'):
+            print('code-format: unknown option %s\n%s' % (a, usage()),
+                  file=sys.stderr)
+            return 2
+        else:
+            files.append(a)
+        k += 1
+    check = '--check' in opts
+
+    cpp, others = [], {}
+    for f in files:
+        if f.lower().endswith(CPP):
+            cpp.append(f)
+            continue
+        root = root_of(f)
+        for pattern, command in rules_of(root):
+            if fnmatch.fnmatch(os.path.basename(f), pattern):
+                key = (root, tuple(command))
+                others.setdefault(key, []).append(os.path.abspath(f))
+                break
+        else:
+            if not quiet:
+                print('code-format: no formatter for %s, left as it is' % f,
+                      file=sys.stderr)
+
+    status = 0
+    if cpp:
+        r = subprocess.run([sys.executable, os.path.join(HERE, 'format.py')]
+                           + opts + cpp)
+        status = max(status, r.returncode)
+    for (root, command), fs in others.items():
+        r = subprocess.run(list(command) + (['--check'] if check else [])
+                           + fs, cwd=root)
+        status = max(status, r.returncode)
+    return status
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv[1:]))

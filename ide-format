@@ -1,0 +1,13 @@
+#!/bin/bash
+# The formatter that the IDE runs on the file it shows: the formatter of the
+# project, a scripts/*-format found up the tree, if it has one, else
+# code-format; in C++, only the lines changed since HEAD (--git).
+f=$(readlink -f "$1")
+d=$(dirname "$f")
+while [ "$d" != / ] ; do
+  for p in "$d"/scripts/*-format ; do
+    [ -x "$p" ] && exec "$p" --git "$f"
+  done
+  d=$(dirname "$d")
+done
+exec python3 "$(dirname "$(readlink -f "$0")")/code-format" --git "$f"

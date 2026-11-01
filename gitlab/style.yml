@@ -1,0 +1,48 @@
+# --------------------------------------------------------------------------- #
+# The check of the style of a merge request, for GitLab.                      #
+#                                                                             #
+# A project includes this file at a tag of the repository, by the address of  #
+# its raw content (include: remote:, see the README), and gets one job,       #
+# style, in the stage test (STYLE_STAGE changes it), which runs               #
+# ci/check-style of that tag on what the merge request changes: in a C++      #
+# source only the lines it changes, any other file that the .code-format of   #
+# the project names whole.                                                    #
+#                                                                             #
+# The job fails, and the merge request cannot be merged, until they are in    #
+# the style; what puts them there is kept as the artifact style.patch and, if #
+# the variable STYLE_TOKEN is set (a project access token, of the role        #
+# Reporter and with the scope api, masked), posted on the merge request as    #
+# suggestions on its lines. A merge request that has to keep a layout of its  #
+# own says so with [skip style] in the title.                                 #
+# --------------------------------------------------------------------------- #
+
+variables:
+  STYLE_STAGE: test
+  STYLE_REF: v1
+  STYLE_REPO: https://github.com/dmeoli/code-style.git
+
+style:
+  stage: $STYLE_STAGE
+  needs: []
+  image: python:3.12-slim
+  variables:
+    GIT_DEPTH: 0                       # the base of the merge request
+  rules:
+    - if: $CI_MERGE_REQUEST_TITLE =~ /\[skip style\]/
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq git > /dev/null
+    - pip install -q "clang-format==22.1.5"
+    - >-
+      git clone -q --depth 1 --branch "$STYLE_REF" "$STYLE_REPO"
+      /tmp/code-style
+  script:
+    - git fetch --quiet origin "$CI_MERGE_REQUEST_DIFF_BASE_SHA" || true
+    - /tmp/code-style/ci/check-style "$CI_MERGE_REQUEST_DIFF_BASE_SHA"
+  artifacts:
+    when: on_failure
+    expose_as: style patch
+    paths:
+      - style.patch
+    expire_in: 2 weeks

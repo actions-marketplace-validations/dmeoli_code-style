@@ -1,0 +1,6 @@
+<keymap version="1" name="House style" parent="Default for GNOME">
+  <action id="ReformatCode" />
+  <action id="Tool_External Tools_Format">
+    <keyboard-shortcut first-keystroke="ctrl alt l" />
+  </action>
+</keymap>

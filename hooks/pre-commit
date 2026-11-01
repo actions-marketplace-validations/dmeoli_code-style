@@ -1,0 +1,50 @@
+#!/bin/bash
+# The hook of git that holds a commit to the style of its project: the files
+# of the commit are checked with code-format --check --git (in a C++ source
+# only the lines changed since HEAD, any other file whole, by the formatter
+# that the .code-format of the project names), and the commit stops if one
+# is not in the style, saying how to put it there. install-hooks installs it
+# in a repository and in its submodules; git commit --no-verify commits all
+# the same.
+#
+# The formatter is $CODE_FORMAT if set, else the scripts/*-format of the
+# repository or of the one it is a submodule of, if there is one, else the
+# code-format next to this hook.
+
+top=$(git rev-parse --show-toplevel)
+fmt=$CODE_FORMAT
+if [ -z "$fmt" ] ; then
+  for d in "$top" "$(git rev-parse --show-superproject-working-tree)" ; do
+    [ -n "$d" ] || continue
+    for p in "$d"/scripts/*-format ; do
+      [ -x "$p" ] && { fmt=$p ; break 2 ; }
+    done
+  done
+fi
+if [ -z "$fmt" ] ; then
+  here=$(dirname "$(readlink -f "$0")")
+  fmt="$here/../code-format"
+fi
+if ! command -v clang-format > /dev/null ; then
+  echo "pre-commit: no clang-format, style not checked" \
+       "(pip install clang-format==22.1.5)" >&2
+  exit 0
+fi
+
+files=()
+while IFS= read -r f ; do
+  files+=("$f")
+done < <(git diff --cached --name-only --diff-filter=AMR)
+[ ${#files[@]} = 0 ] && exit 0
+
+cd "$top" || exit 0
+bad=$("$fmt" --check --only-known --git "${files[@]}")
+if [ -n "$bad" ] ; then
+  echo "These files are not in the style of the project:" >&2
+  echo "$bad" >&2
+  echo "Put them in it with" >&2
+  echo "  $fmt --git $(echo $bad)" >&2
+  echo "and add them again, or commit with --no-verify." >&2
+  exit 1
+fi
+exit 0

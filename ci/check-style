@@ -1,0 +1,55 @@
+#!/bin/bash
+# The check of the style of a merge request or of a pull request, run from
+# the root of its repository: the files that it changes since BASE are
+# checked with code-format --check --since BASE, i.e., in a C++ source only
+# the lines it changes, any other file that the .code-format of the project
+# names whole. If one is not in the style, the formatters are run on them,
+# what they change is kept as style.patch, posted on the request as
+# suggestions if STYLE_TOKEN is set [see review/style_review.py], and the
+# check fails, saying how to put the files in the style.
+#
+# A project with no .clang-format at its root is checked with the one of
+# this repository, copied there for the check (it is not committed).
+#
+# Usage: check-style BASE
+
+here=$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)
+base=$1
+if [ -z "$base" ] ; then
+  echo "check-style: BASE is needed" >&2
+  exit 2
+fi
+
+files=()
+while IFS= read -r f ; do
+  files+=("$f")
+done < <(git diff --name-only --diff-filter=AMR "$base" HEAD)
+if [ ${#files[@]} = 0 ] ; then
+  echo "no file changed"
+  exit 0
+fi
+
+[ -f .clang-format ] || cp "$here/.clang-format" .clang-format
+
+bad=$(python3 "$here/code-format" --check --only-known --since "$base" \
+      "${files[@]}")
+if [ -z "$bad" ] ; then
+  echo "the files changed are in the style"
+  exit 0
+fi
+
+echo "These files are not in the style:"
+echo "$bad"
+mapfile -t badf <<< "$bad"
+python3 "$here/code-format" --only-known --since "$base" "${badf[@]}" \
+  > /dev/null
+git diff > style.patch
+if [ -n "$STYLE_TOKEN" ] ; then
+  python3 "$here/review/style_review.py" style.patch "$base" || true
+fi
+echo
+echo "Apply the patch style.patch kept by this check with"
+echo "  git apply style.patch"
+echo "or format the files with"
+echo "  code-format --since $base <files>"
+exit 1

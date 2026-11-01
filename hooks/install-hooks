@@ -1,0 +1,27 @@
+#!/bin/bash
+# Installs the pre-commit hook next to this script as the pre-commit hook of
+# git of the repository given (the current one by default) and of all its
+# submodules, as a link, so that it follows this directory when it changes.
+# A repository that already has a pre-commit hook of its own is left alone,
+# and said.
+#
+# Usage: install-hooks [REPOSITORY]
+
+hook=$(dirname "$(readlink -f "$0")")/pre-commit
+root=$(git -C "${1:-.}" rev-parse --show-toplevel) || exit 1
+install_in () {
+  local dir
+  dir=$(git -C "$1" rev-parse --path-format=absolute --git-path hooks) ||
+    return
+  mkdir -p "$dir"
+  if [ -e "$dir/pre-commit" ] && \
+     [ "$(readlink -f "$dir/pre-commit")" != "$hook" ] ; then
+    echo "$1: has a pre-commit hook of its own, left alone"
+    return
+  fi
+  ln -sf "$hook" "$dir/pre-commit"
+  echo "$1: installed"
+}
+install_in "$root"
+git -C "$root" submodule foreach --quiet --recursive 'echo $displaypath' |
+  while read -r m ; do install_in "$root/$m" ; done
