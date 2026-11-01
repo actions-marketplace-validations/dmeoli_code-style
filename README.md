@@ -70,7 +70,8 @@ change are listed, and the exit status is 1 if there are any.
 
 `code-format` is the entry point of the other tools. It sends a C++ source
 to `format.py`, and any other file to the formatter that the project names
-in a file `.code-format` at its root, one per line:
+in the first file `.code-format` up the tree of the file (that of a
+repository serves also its submodules), one per line:
 
 ```
 # PATTERN  COMMAND...
@@ -78,10 +79,10 @@ in a file `.code-format` at its root, one per line:
 ```
 
 The pattern is matched against the name of the file, and the command is
-run from the root with `--check` (if given) and the files that match; it
-formats them entirely, and exits with status 1 when some file would change.
-A file that no formatter takes is skipped with a message, which
-`--only-known` suppresses.
+run from the directory of the `.code-format` with `--check` (if given) and
+the files that match; it formats them entirely, and exits with status 1
+when some file would change. A file that no formatter takes is skipped with
+a message, which `--only-known` suppresses.
 
 ## In the IDE
 

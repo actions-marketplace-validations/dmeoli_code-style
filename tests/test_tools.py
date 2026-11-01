@@ -104,6 +104,16 @@ def test_code_format():
     r = run([CODE_FORMAT, '--check', '--only-known', 'x.md'], d)
     check(r.returncode == 0 and not r.stderr, 'in silence with --only-known')
 
+    # the .code-format of a repository serves its subdirectories, and a
+    # submodule, which is a git tree of its own, as well
+    sub = os.path.join(d, 'sub')
+    os.mkdir(sub)
+    run(['git', 'init', '-q'], sub)
+    write(sub, 'm.txt', 'deep\n')
+    r = run([CODE_FORMAT, os.path.join(sub, 'm.txt')], sub)
+    check(read(sub, 'm.txt') == 'DEEP\n',
+          'the .code-format up the tree serves a nested git tree')
+
     r = run([CODE_FORMAT, '--chek', 'b.cc'], d)
     check(r.returncode == 2 and 'unknown option' in r.stderr,
           'an unknown option stops it')

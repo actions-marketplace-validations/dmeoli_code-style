@@ -3,14 +3,15 @@
 
 A C++ source (and a page of Doxygen, .dox) is formatted by format.py, next
 to this script, with the .clang-format found up the tree of the file. Any
-other file goes to the formatters that the project declares in a file
-.code-format at its root (the top of its git tree), one per line:
+other file goes to the formatters declared in the first file .code-format
+found up the tree of the file, as clang-format finds its .clang-format (so
+that the one of a repository also serves its submodules), one per line:
 
     PATTERN  COMMAND...
 
 where PATTERN is a glob matched against the name of the file (e.g., *.txt)
-and COMMAND is run from the root with --check, if given, and the files
-that match it; it has to take them whole, to change nothing with --check,
+and COMMAND is run from the directory of the .code-format with --check,
+if given, and the files that match it; it has to take them whole, to change nothing with --check,
 and to exit with status 1 if some file would change. Lines starting with #
 are comments. A file that no formatter takes is left alone, and said
 unless --only-known is given (as a hook of git does, which passes every
@@ -42,11 +43,16 @@ def usage():
 
 
 def root_of(path):
-    """The top of the git tree of path, or its directory if there is none."""
+    """The directory of the first .code-format up the tree of path, or None
+    if there is none."""
     d = os.path.dirname(os.path.abspath(path))
-    r = subprocess.run(['git', 'rev-parse', '--show-toplevel'], cwd=d,
-                       capture_output=True, text=True)
-    return r.stdout.strip() if r.returncode == 0 else d
+    while True:
+        if os.path.isfile(os.path.join(d, '.code-format')):
+            return d
+        up = os.path.dirname(d)
+        if up == d:
+            return None
+        d = up
 
 
 def rules_of(root):
@@ -99,7 +105,7 @@ def main(argv):
             cpp.append(f)
             continue
         root = root_of(f)
-        for pattern, command in rules_of(root):
+        for pattern, command in rules_of(root) if root else []:
             if fnmatch.fnmatch(os.path.basename(f), pattern):
                 key = (root, tuple(command))
                 others.setdefault(key, []).append(os.path.abspath(f))
