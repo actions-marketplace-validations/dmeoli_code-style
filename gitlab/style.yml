@@ -6,7 +6,9 @@
 # style, in the stage test (STYLE_STAGE changes it), which runs               #
 # ci/check-style of that tag on what the merge request changes: in a C++      #
 # source only the lines it changes, any other file that the .code-format of   #
-# the project names whole.                                                    #
+# the project names whole. STYLE_SETUP is a command run before the check      #
+# (e.g., one that fetches the formatter of some files and writes the          #
+# .code-format that names it).                                                #
 #                                                                             #
 # The job fails, and the merge request cannot be merged, until they are in    #
 # the style; what puts them there is kept as the artifact style.patch and, if #
@@ -18,6 +20,7 @@
 
 variables:
   STYLE_STAGE: test
+  STYLE_SETUP: ""                      # a command run before the check
   STYLE_REF: v1
   STYLE_REPO: https://github.com/dmeoli/code-style.git
 
@@ -39,6 +42,7 @@ style:
       /tmp/code-style
   script:
     - git fetch --quiet origin "$CI_MERGE_REQUEST_DIFF_BASE_SHA" || true
+    - eval "${STYLE_SETUP:-true}"
     - /tmp/code-style/ci/check-style "$CI_MERGE_REQUEST_DIFF_BASE_SHA"
   artifacts:
     when: on_failure
