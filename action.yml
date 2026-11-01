@@ -19,9 +19,8 @@
 
 name: Code style suggestions
 description: >-
-  Checks that the lines a pull request changes are in the style of
-  .clang-format and of format.py, and suggests the changes that put them
-  there.
+  Checks that the lines a pull request changes follow .clang-format and
+  format.py, and suggests the fixes on them.
 branding:
   icon: align-left
   color: purple
