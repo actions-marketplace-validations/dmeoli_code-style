@@ -40,7 +40,10 @@ fi
 
 echo "These files are not in the style:"
 echo "$bad"
-mapfile -t badf <<< "$bad"
+badf=()
+while IFS= read -r f ; do
+  badf+=("$f")
+done <<< "$bad"
 python3 "$here/code-format" --only-known --since "$base" "${badf[@]}" \
   > /dev/null
 git diff > style.patch

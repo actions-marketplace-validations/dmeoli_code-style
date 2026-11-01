@@ -126,8 +126,7 @@ def test_check_style():
           'check-style fails on a file out of the style, naming it')
     patch = read(d, 'style.patch') if os.path.exists(
         os.path.join(d, 'style.patch')) else ''
-    check('+int f( int x ) { return( x + 1 ); }' in patch.replace(
-          '\n', ' ') or 'return( x + 1 )' in patch,
+    check('return( x + 1 )' in patch,
           'and keeps the change that puts it there as style.patch')
 
     run(['git', 'checkout', '-q', '--', '.'], d)
