@@ -43,8 +43,10 @@ columns. It does not touch what is usually a choice of the author, i.e.,
 the comments, the order of the includes and of the using-declarations, the
 string literals and the indentation of the preprocessor directives. A file
 that a program writes (`DO NOT EDIT` or `@generated` in its first lines) is
-skipped. So is a file with no `.clang-format` up its tree, which
-clang-format would format in a style of its choice.
+skipped. A file with no `.clang-format` up its tree is formatted with the
+one of this repository; hence, a project in this style needs no copy of
+it, and one with a style of its own keeps its `.clang-format` at its root,
+which then takes precedence.
 
 Each change that `format.py` makes is compared with the tokens of the
 lines it replaces, and it is dropped if it would add, remove or reorder
@@ -146,14 +148,15 @@ with the scope `api`. A change that cannot be suggested on the lines of the
 request (e.g., in a file formatted entirely) goes as a patch into one
 comment, and the comments of the previous run are replaced at each run. A
 merge request of GitLab that has to keep a different layout says so with
-`[skip style]` in its title. The variable `STYLE_SETUP` of the template
-holds a command run before the check (e.g., one that fetches the formatter
-of some files and writes the `.code-format` that names it).
+`[skip style]` in its title. A project changes the job by defining it
+again in its pipeline (e.g., `style: stage: build`), which GitLab merges
+with the one of the template; the variable `STYLE_SETUP` of the job holds a
+command run before the check (e.g., one that fetches the formatter of some
+files and writes the `.code-format` that names it).
 
 The tags are versions: `v1` follows the releases `1.x`, whose changes of
 layout are only fixes, and therefore a project that pins it is not
-reformatted by surprise. A project with no `.clang-format` at its root is
-checked with the one of this repository.
+reformatted by surprise.
 
 ## Requirements
 

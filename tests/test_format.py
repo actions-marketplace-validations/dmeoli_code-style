@@ -104,24 +104,27 @@ def restrict_keeps_code():
         fmt.cpp_tokens(old, fmt.LAYOUT_TOKENS)
 
 
-def style_needed():
-    """A file with no .clang-format above it is not formatted."""
+def style_default():
+    """A file with no .clang-format above it is formatted with the one of
+    this repository, and one with its own is formatted with that."""
     work = tempfile.mkdtemp()
     try:
         path = os.path.join(work, 'case.cpp')
         with open(path, 'w') as f:
-            f.write('int f(int x){return x;}\n')
-        import contextlib
-        import io
-        with contextlib.redirect_stderr(io.StringIO()):
-            status = fmt.main([path])
-        if fmt.has_style(path) or status != 2:
+            f.write('int f(int x){if(x)return x;return 0;}\n')
+        if fmt.has_style(path) or fmt.main([path]) != 0:
             return False
         with open(path) as f:
-            if f.read() != 'int f(int x){return x;}\n':
+            if ' if( x )' not in f.read():
                 return False
-        open(os.path.join(work, '.clang-format'), 'w').close()
-        return fmt.has_style(path)
+        # a project with a style of its own: two spaces, no space in ()
+        with open(os.path.join(work, '.clang-format'), 'w') as f:
+            f.write('BasedOnStyle: LLVM\nIndentWidth: 2\n')
+        with open(path, 'w') as f:
+            f.write('int f(int x){if(x)return x;return 0;}\n')
+        fmt.main([path])
+        with open(path) as f:
+            return fmt.has_style(path) and '  if (x)' in f.read()
     finally:
         shutil.rmtree(work)
 
@@ -167,8 +170,8 @@ def run():
         print('FAIL a generated file is left as it is')
     for check, name in ((restrict_keeps_code, 'a change paired with other '
                          'code is not taken'),
-                        (style_needed, 'a file with no .clang-format above '
-                         'it is left as it is')):
+                        (style_default, 'a file with no .clang-format above '
+                         'it takes the one of this repository')):
         if check():
             print('ok   %s' % name)
         else:

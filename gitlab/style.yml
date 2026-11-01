@@ -3,11 +3,12 @@
 #                                                                             #
 # A project includes this file at a tag of the repository, by the address of  #
 # its raw content (include: remote:, see the README), and gets one job,       #
-# style, in the stage test (STYLE_STAGE changes it), which runs               #
-# ci/check-style of that tag on what the merge request changes: in a C++      #
-# source only the lines it changes, any other file that the .code-format of   #
-# the project names whole. STYLE_SETUP is a command run before the check      #
-# (e.g., one that fetches the formatter of some files and writes the          #
+# style, in the stage test, which runs ci/check-style of that tag on what the #
+# merge request changes: in a C++ source only the lines it changes, any other #
+# file that the .code-format of the project names whole. The project changes  #
+# the job by defining it again, e.g., style: stage: build, which GitLab       #
+# merges with this one; its variable STYLE_SETUP is a command run before the  #
+# check (e.g., one that fetches the formatter of some files and writes the    #
 # .code-format that names it).                                                #
 #                                                                             #
 # The job fails, and the merge request cannot be merged, until they are in    #
@@ -18,18 +19,15 @@
 # own says so with [skip style] in the title.                                 #
 # --------------------------------------------------------------------------- #
 
-variables:
-  STYLE_STAGE: test
-  STYLE_SETUP: ""                      # a command run before the check
-  STYLE_REF: v1
-  STYLE_REPO: https://github.com/dmeoli/code-style.git
-
 style:
-  stage: $STYLE_STAGE
+  stage: test
   needs: []
   image: python:3.12-slim
   variables:
     GIT_DEPTH: 0                       # the base of the merge request
+    STYLE_SETUP: ""                    # a command run before the check
+    STYLE_REF: v1
+    STYLE_REPO: https://github.com/dmeoli/code-style.git
   rules:
     - if: $CI_MERGE_REQUEST_TITLE =~ /\[skip style\]/
       when: never

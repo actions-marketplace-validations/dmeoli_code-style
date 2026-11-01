@@ -26,10 +26,11 @@ ones changed since REF (a file that git does not know is formatted
 whole), so that the code around is left as it is;
 with --check nothing is written, and the files that would change are
 listed, with exit status 1 if there are any. A file with no .clang-format
-in its directory or above it is left as it is, with exit status 2. A .dox
-file only has its blocks of code formatted.
+in its directory or above it is formatted with the one next to this
+script. A .dox file only has its blocks of code formatted.
 """
 
+import os
 import re
 import subprocess
 import sys
@@ -602,8 +603,7 @@ def git_ranges(path, ref='HEAD'):
 
 def has_style(path):
     """Whether a .clang-format is in the directory of path or above it:
-    without one, clang-format formats in a style of its own."""
-    import os
+    without one, the one next to this script is used [see main()]."""
     d = os.path.dirname(os.path.abspath(path))
     while True:
         if any(os.path.isfile(os.path.join(d, n))
@@ -658,17 +658,16 @@ def main(argv):
     changed = []
     status = 0
     for path in files:
-        if not has_style(path):
-            print('format.py: no .clang-format in the directory of %s or '
-                  'above it, the file is left as it is' % path,
-                  file=sys.stderr)
-            status = 2
-            continue
         with open(path, encoding='latin-1') as f:
             text = f.read()
         if generated(text):
             continue
-        new = format_text(text, path=path)
+        # clang-format looks for the style up the tree of the name it is given:
+        # with no .clang-format there, the name is taken next to this script
+        style_path = path if has_style(path) else os.path.join(
+            os.path.dirname(os.path.realpath(__file__)),
+            os.path.basename(path))
+        new = format_text(text, path=style_path)
         r = ranges
         if use_git:
             r = git_ranges(path, ref)
