@@ -17,6 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `STYLE NAME` of its `.code-format`; the variant `spaces` indents and
   aligns by spaces alone and writes a space after a cast
 
+### Fixed
+
+- a line that the spaces before the commas push past the limit is broken
+  with tabs only when the style that clang-format finds for the file
+  indents by tabs, and by spaces alone otherwise
+- a line broken again that goes on with the line above, i.e., an argument
+  of a call opened there, keeps the column of that line instead of moving
+  two columns to the right
+
 ## [1.3.2] - 2026-11-01
 
 ### Fixed

@@ -32,6 +32,7 @@ script, or with the variant styles/NAME/.clang-format of it if the first
 blocks of code formatted.
 """
 
+import functools
 import os
 import re
 import subprocess
@@ -392,10 +393,11 @@ def align_continuations(text):
     return '\n'.join(lines)
 
 
-def break_long(text, limit=None):
+def break_long(text, limit=None, tabs=True):
     """A line past the limit broken after the last comma that fits, or the
     last semicolon of the header of a for, the rest aligned with the first
-    argument of the call (or the first part of the for) it is in."""
+    argument of the call (or the first part of the for) it is in, by tabs
+    and spaces if tabs, else by spaces alone."""
     limit = limit or LIMIT
     res = []
     inside = in_directive(text)
@@ -424,18 +426,32 @@ def break_long(text, limit=None):
                 elif c == ')':
                     if stack:
                         stack.pop()
+            indent = len(line.expandtabs(8)) - len(line.lstrip())
             if stack:
                 col = len(line[:stack[-1] + 1].expandtabs(8)) + 1
+            elif res and res[-1].rstrip().endswith(','):
+                col = indent           # it goes on with the line above
             else:
-                col = len(line) - len(line.lstrip()) + 2
+                col = indent + 2
             head, tail = line[:cut].rstrip(), line[cut:].lstrip()
             if not tail:
                 break
             res.append(head)
-            pad = '\t' * (col // 8) + ' ' * (col % 8)
+            pad = '\t' * (col // 8) + ' ' * (col % 8) if tabs else ' ' * col
             line = pad + tail
         res.append(line)
     return '\n'.join(res)
+
+
+@functools.lru_cache(maxsize=None)
+def uses_tabs(clang_format, style, path):
+    """Whether the style that clang-format finds for path indents by tabs,
+    i.e., its UseTab is not Never."""
+    out = subprocess.run([clang_format, '--style=' + style,
+                          '--assume-filename=' + path, '--dump-config'],
+                         capture_output=True, text=True, check=True).stdout
+    m = re.search(r'^UseTab:\s*(\w+)', out, re.M)
+    return m is not None and m.group(1) != 'Never'
 
 
 def format_code(text, clang_format='clang-format', path='file.h',
@@ -457,7 +473,7 @@ def format_code(text, clang_format='clang-format', path='file.h',
     text = indent_closing(text)
     text = column_zero(text)
     text = align_continuations(text)
-    text = break_long(text, limit)
+    text = break_long(text, limit, uses_tabs(clang_format, style, path))
     return text
 
 

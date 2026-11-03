@@ -162,6 +162,43 @@ def style_variant():
         shutil.rmtree(work)
 
 
+def break_aligned():
+    """A call that the spaces before the commas push past the limit, deep
+    enough for its arguments to start past the eighth column: each line
+    broken goes on in the column of the first argument, by tabs with the
+    style of this repository and by spaces alone with the variant
+    spaces."""
+    args = ','.join('a%d' % i for i in range(40))
+    src = 'void f(){if(x){if(y){if(z){if(w){g(%s);}}}}}\n' % args
+    outs = []
+    for variant in (None, 'spaces'):
+        work = tempfile.mkdtemp()
+        try:
+            path = os.path.join(work, 'case.cpp')
+            with open(path, 'w') as f:
+                f.write(src)
+            if variant:
+                with open(os.path.join(work, '.code-format'), 'w') as f:
+                    f.write('STYLE %s\n' % variant)
+            if fmt.main([path]) != 0:
+                return False
+            with open(path) as f:
+                outs.append(f.read())
+        finally:
+            shutil.rmtree(work)
+    for out in outs:
+        lines = out.split('\n')
+        first = next(i for i, l in enumerate(lines) if 'g( a0' in l)
+        col = lines[first].expandtabs(8).index('a0')
+        last = next(i for i in range(first, len(lines))
+                    if lines[i].rstrip().endswith(');'))
+        if last == first or any(
+                len(l.expandtabs(8)) - len(l.expandtabs(8).lstrip()) != col
+                for l in lines[first + 1:last + 1]):
+            return False
+    return '\t' in outs[0] and '\t' not in outs[1]
+
+
 def generated_skipped():
     """A file that says it is generated is left as it is."""
     return fmt.generated('/* FILE GENERATED AUTOMATICALLY, DO NOT EDIT */\n') \
@@ -206,7 +243,9 @@ def run():
                         (style_default, 'a file with no .clang-format above '
                          'it takes the one of this repository'),
                         (style_variant, 'the variant of the style that '
-                         '.code-format chooses')):
+                         '.code-format chooses'),
+                        (break_aligned, 'a line broken after a comma goes '
+                         'on in the column of the first argument')):
         if check():
             print('ok   %s' % name)
         else:
