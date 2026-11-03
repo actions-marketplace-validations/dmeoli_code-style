@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `YELLOW`, `STRINGIFY`, `STRINGIZE`) are left as they are, since a space
   that clang-format added among their tokens, e.g., `!!` made `! !`, was in
   the string
+- a line that the spaces before the commas push past the limit is broken
+  after a comma among the least nested ones, counting the braces and the
+  angle brackets of a template too, and goes on in the column of the first
+  item of the call, braced list or template it is in, or in that of the
+  items of a list opened on a line above; before, an item of a braced list
+  was broken among the arguments of a template and went on in the column
+  of the list
+- a line in the middle of a block comment is no longer broken, its commas
+  being masked as those of the comments of one line
 
 ## [1.5.0] - 2026-11-03
 

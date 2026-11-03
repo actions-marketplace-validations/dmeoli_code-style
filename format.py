@@ -393,14 +393,40 @@ def align_continuations(text):
     return '\n'.join(lines)
 
 
+def brackets(m_line):
+    """For each offset of a masked line, the offsets of the brackets open
+    there, the outermost first: parentheses, braces, square brackets and
+    the angle brackets of a template, i.e., a < right after a name, as in
+    vector< int >, where a comparison has a space before it."""
+    res, stack = [], []
+    for k, c in enumerate(m_line):
+        if c in '([{':
+            stack.append(k)
+        elif c in ')]}':
+            while stack and m_line[stack[-1]] == '<':
+                stack.pop()             # a < that was not a template
+            if stack:
+                stack.pop()
+        elif c == '<' and k and (m_line[k - 1].isalnum() or
+                                 m_line[k - 1] == '_'):
+            stack.append(k)
+        elif c == '>' and stack and m_line[stack[-1]] == '<' and \
+                m_line[k - 1] != '-':
+            stack.pop()
+        res.append(list(stack))
+    return res
+
+
 def break_long(text, limit=None, tabs=True):
-    """A line past the limit broken after the last comma that fits, or the
-    last semicolon of the header of a for, the rest aligned with the first
-    argument of the call (or the first part of the for) it is in, by tabs
-    and spaces if tabs, else by spaces alone."""
+    """A line past the limit broken after the last comma that fits among
+    the least nested ones, or the last semicolon of the header of a for,
+    the rest aligned with the first argument of the call (or the first
+    part of the for, or the first item of the braced list) it is in, by
+    tabs and spaces if tabs, else by spaces alone."""
     limit = limit or LIMIT
     res = []
     inside = in_directive(text)
+    m_text = mask(text)     # a line in the middle of a comment is masked
     pos = 0
     for line in text.split('\n'):
         start = pos
@@ -408,29 +434,27 @@ def break_long(text, limit=None, tabs=True):
         if inside(start):
             res.append(line)   # a directive is left to clang-format
             continue
+        m_line = m_text[start:start + len(line)]
         while len(line.expandtabs(8)) > limit:
-            m_line = mask(line)
-            cut = -1
+            opens = brackets(m_line)
+            # the last cut that fits among the least nested ones
+            cut, depth = -1, None
             for m in re.finditer(r' ,| ;(?= )', m_line):
-                if len(line[:m.end()].expandtabs(8)) <= limit:
-                    cut = m.end()
+                if len(line[:m.end()].expandtabs(8)) > limit:
+                    continue
+                d = len(opens[m.start()])
+                if depth is None or d <= depth:
+                    cut, depth = m.end(), d
             if cut < 0:
                 break
-            # the column of the first argument of the innermost open call
-            depth, col = 0, None
-            stack = []
-            for k in range(cut):
-                c = m_line[k]
-                if c == '(':
-                    stack.append(k)
-                elif c == ')':
-                    if stack:
-                        stack.pop()
+            # the column of the first item of the innermost open call,
+            # braced list or template
+            stack = opens[cut - 1]
             indent = len(line.expandtabs(8)) - len(line.lstrip())
             if stack:
                 col = len(line[:stack[-1] + 1].expandtabs(8)) + 1
-            elif res and res[-1].rstrip().endswith(','):
-                col = indent           # it goes on with the line above
+            elif res and res[-1].rstrip()[-1:] in (',', '(', '{', '['):
+                col = indent           # an item of a list open above
             else:
                 col = indent + 2
             head, tail = line[:cut].rstrip(), line[cut:].lstrip()
@@ -438,6 +462,7 @@ def break_long(text, limit=None, tabs=True):
                 break
             res.append(head)
             pad = '\t' * (col // 8) + ' ' * (col % 8) if tabs else ' ' * col
+            m_line = pad + m_line[len(line) - len(tail):]
             line = pad + tail
         res.append(line)
     return '\n'.join(res)

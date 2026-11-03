@@ -202,6 +202,33 @@ def break_aligned():
     return '\t' in outs[0] and '\t' not in outs[1]
 
 
+def break_least_nested():
+    """An item of a braced list that the spaces before the commas push past
+    the limit: the line is broken after a comma of the list, not after the
+    one among the arguments of a template, and the rest goes on in the
+    column of the first item."""
+    src = ('static const C c[] = {\n'
+           ' { "bb-shared-openmp" , "openmp" ,\n'
+           '   test_bb_parallel< 0 , ADS::OpenMPExecutor > } ,\n'
+           ' };\n')
+    work = tempfile.mkdtemp()
+    try:
+        path = os.path.join(work, 'case.cpp')
+        with open(path, 'w') as f:
+            f.write(src)
+        with open(os.path.join(work, '.code-format'), 'w') as f:
+            f.write('STYLE spaces\n')
+        if fmt.main([path]) != 0:
+            return False
+        with open(path) as f:
+            lines = f.read().split('\n')
+    finally:
+        shutil.rmtree(work)
+    k = next(i for i, l in enumerate(lines) if 'bb-shared' in l)
+    return lines[k].endswith('"openmp" ,') and \
+        lines[k + 1].index('test_bb') == lines[k].index('"bb-shared')
+
+
 def generated_skipped():
     """A file that says it is generated is left as it is."""
     return fmt.generated('/* FILE GENERATED AUTOMATICALLY, DO NOT EDIT */\n') \
@@ -248,13 +275,15 @@ def run():
                         (style_variant, 'the variant of the style that '
                          '.code-format chooses'),
                         (break_aligned, 'a line broken after a comma goes '
-                         'on in the column of the first argument')):
+                         'on in the column of the first argument'),
+                        (break_least_nested, 'a line is broken after a '
+                         'comma of the list, not of a template')):
         if check():
             print('ok   %s' % name)
         else:
             failed += 1
             print('FAIL %s' % name)
-    print('%d of %d failed' % (failed, len(CASES) + 4))
+    print('%d of %d failed' % (failed, len(CASES) + 7))
     return 1 if failed else 0
 
 
