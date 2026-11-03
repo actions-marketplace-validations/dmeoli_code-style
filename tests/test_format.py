@@ -129,6 +129,39 @@ def style_default():
         shutil.rmtree(work)
 
 
+def style_variant():
+    """A file with no .clang-format above it, whose .code-format chooses the
+    variant spaces, is indented by spaces only and has a space after a
+    cast; with no .code-format it takes tabs and no such space, and a
+    variant that does not exist is refused."""
+    src = ('void f(){if(a){if(b){x = some_function(first_argument_value, '
+           'second_argument_value, third_argument);(void)h(x);}}}\n')
+    work = tempfile.mkdtemp()
+    try:
+        path = os.path.join(work, 'case.cpp')
+        with open(path, 'w') as f:
+            f.write(src)
+        if fmt.main([path]) != 0:
+            return False
+        with open(path) as f:
+            plain = f.read()
+        with open(os.path.join(work, '.code-format'), 'w') as f:
+            f.write('# the variant of the style\nSTYLE spaces\n')
+        with open(path, 'w') as f:
+            f.write(src)
+        if fmt.main([path]) != 0:
+            return False
+        with open(path) as f:
+            spaces = f.read()
+        with open(os.path.join(work, '.code-format'), 'w') as f:
+            f.write('STYLE nonesuch\n')
+        refused = fmt.main([path]) == 2
+        return ('\t' in plain) and ('( void )h' in plain) and \
+            ('\t' not in spaces) and ('( void ) h' in spaces) and refused
+    finally:
+        shutil.rmtree(work)
+
+
 def generated_skipped():
     """A file that says it is generated is left as it is."""
     return fmt.generated('/* FILE GENERATED AUTOMATICALLY, DO NOT EDIT */\n') \
@@ -171,7 +204,9 @@ def run():
     for check, name in ((restrict_keeps_code, 'a change paired with other '
                          'code is not taken'),
                         (style_default, 'a file with no .clang-format above '
-                         'it takes the one of this repository')):
+                         'it takes the one of this repository'),
+                        (style_variant, 'the variant of the style that '
+                         '.code-format chooses')):
         if check():
             print('ok   %s' % name)
         else:

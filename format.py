@@ -27,7 +27,9 @@ whole), so that the code around is left as it is;
 with --check nothing is written, and the files that would change are
 listed, with exit status 1 if there are any. A file with no .clang-format
 in its directory or above it is formatted with the one next to this
-script. A .dox file only has its blocks of code formatted.
+script, or with the variant styles/NAME/.clang-format of it if the first
+.code-format up its tree has the line STYLE NAME. A .dox file only has its
+blocks of code formatted.
 """
 
 import os
@@ -614,6 +616,42 @@ def has_style(path):
         d = os.path.dirname(d)
 
 
+def named_style(path):
+    """The variant of the style (a directory of styles/, next to this
+    script) that the first .code-format up the tree of path chooses by its
+    line STYLE NAME, or None."""
+    d = os.path.dirname(os.path.abspath(path))
+    while True:
+        f = os.path.join(d, '.code-format')
+        if os.path.isfile(f):
+            with open(f, encoding='utf-8') as g:
+                for line in g:
+                    words = line.split()
+                    if len(words) == 2 and words[0] == 'STYLE':
+                        return words[1]
+            return None
+        if os.path.dirname(d) == d:
+            return None
+        d = os.path.dirname(d)
+
+
+def style_path(path):
+    """The name that clang-format is given for path, which it looks for
+    the style up the tree of: path itself if it has a .clang-format above
+    it, else the same name next to this script, or in the directory of the
+    variant that its .code-format chooses."""
+    if has_style(path):
+        return path
+    d = os.path.dirname(os.path.realpath(__file__))
+    name = named_style(path)
+    if name is not None:
+        d = os.path.join(d, 'styles', name)
+        if not os.path.isfile(os.path.join(d, '.clang-format')):
+            raise ValueError('no style %s, chosen by the .code-format of %s'
+                             % (name, path))
+    return os.path.join(d, os.path.basename(path))
+
+
 def generated(text):
     """Whether the file says in its first lines that a program writes it
     (DO NOT EDIT, @generated): its layout is the one of that program."""
@@ -662,12 +700,11 @@ def main(argv):
             text = f.read()
         if generated(text):
             continue
-        # clang-format looks for the style up the tree of the name it is given:
-        # with no .clang-format there, the name is taken next to this script
-        style_path = path if has_style(path) else os.path.join(
-            os.path.dirname(os.path.realpath(__file__)),
-            os.path.basename(path))
-        new = format_text(text, path=style_path)
+        try:
+            new = format_text(text, path=style_path(path))
+        except ValueError as e:
+            print('format.py: %s' % e, file=sys.stderr)
+            return 2
         r = ranges
         if use_git:
             r = git_ranges(path, ref)

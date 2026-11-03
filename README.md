@@ -46,7 +46,13 @@ that a program writes (`DO NOT EDIT` or `@generated` in its first lines) is
 skipped. A file with no `.clang-format` up its tree is formatted with the
 one of this repository; hence, a project in this style needs no copy of
 it, and one with a style of its own keeps its `.clang-format` at its root,
-which then takes precedence.
+which then takes precedence. Between the two, a project may choose one of
+the variants in `styles/` by a line `STYLE NAME` of its `.code-format` [see
+below], each variant being a `.clang-format` that inherits the one of this
+repository and changes only what it names: `STYLE spaces` indents and
+aligns the continuations by spaces alone, where the reference uses tabs
+from the eighth column on, and writes a space after a cast,
+`( void ) x`.
 
 Each change that `format.py` makes is compared with the tokens of the
 lines it replaces, and it is dropped if it would add, remove or reorder
@@ -78,13 +84,16 @@ repository serves also its submodules), one per line:
 ```
 # PATTERN  COMMAND...
 *.txt      python3 scripts/cfgformat.py
+STYLE      spaces
 ```
 
 The pattern is matched against the name of the file, and the command is
 run from the directory of the `.code-format` with `--check` (if given) and
 the files that match; it formats them entirely, and exits with status 1
 when some file would change. A file that no formatter takes is skipped with
-a message, which `--only-known` suppresses.
+a message, which `--only-known` suppresses. The line `STYLE NAME` is no
+formatter: it chooses the variant `styles/NAME` of the style for the C++
+sources of the project.
 
 ## In the IDE
 

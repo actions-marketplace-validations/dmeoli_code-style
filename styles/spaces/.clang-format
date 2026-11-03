@@ -1,0 +1,6 @@
+# The style of this repository with the indentation and the continuations
+# in spaces only, and a space after a C-style cast, i.e., ( void ) x; a
+# project chooses it by the line "STYLE spaces" of its .code-format
+BasedOnStyle: InheritParentConfig
+UseTab: Never
+SpaceAfterCStyleCast: true
