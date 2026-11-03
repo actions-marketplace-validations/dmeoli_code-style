@@ -75,6 +75,9 @@ CASES = [
      '///\\code\n///  std::cout << "a" <<\n///    << "b";\n'
      '///\\endcode\nint f();\n',
      ['///  std::cout << "a" <<\n'], ['< <']),
+    ('the argument of a macro that makes a string of it is left alone',
+     'int f() { cout << GREEN( All tests passed!! ) << endl; }\n',
+     ['GREEN( All tests passed!! )'], ['! !']),
     ('a long string literal is not split',
      'void f() { g( "a string literal that is long enough to go past the '
      'limit of the line" ); }\n',

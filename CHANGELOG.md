@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- the arguments of the macros that make a string of them (`GREEN`, `RED`,
+  `YELLOW`, `STRINGIFY`, `STRINGIZE`) are left as they are, since a space
+  that clang-format added among their tokens, e.g., `!!` made `! !`, was in
+  the string
+
 ## [1.5.0] - 2026-11-03
 
 ### Changed
