@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-03
+
+### Changed
+
+- the variant `spaces` opens the brace of a class on the line of its head,
+  leaves the trailing comments and the empty lines after an access
+  specifier as they are, and puts the initializers of a constructor on a
+  line of their own
+
 ## [1.4.0] - 2026-11-03
 
 ### Added
@@ -96,7 +105,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (GitLab) and of pull requests (GitHub) with the suggestions on their
   lines, and their tests
 
-[Unreleased]: https://github.com/dmeoli/code-style/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/dmeoli/code-style/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/dmeoli/code-style/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/dmeoli/code-style/compare/v1.3.2...v1.4.0
 [1.3.2]: https://github.com/dmeoli/code-style/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/dmeoli/code-style/compare/v1.3.0...v1.3.1

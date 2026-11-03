@@ -51,8 +51,10 @@ the variants in `styles/` by a line `STYLE NAME` of its `.code-format` [see
 below], each variant being a `.clang-format` that inherits the one of this
 repository and changes only what it names: `STYLE spaces` indents and
 aligns the continuations by spaces alone, where the reference uses tabs
-from the eighth column on, and writes a space after a cast,
-`( void ) x`.
+from the eighth column on, writes a space after a cast, `( void ) x`,
+opens the brace of a class on the line of its head, leaves the trailing
+comments and the empty lines after an access specifier as they are, and
+puts the initializers of a constructor on a line of their own.
 
 Each change that `format.py` makes is compared with the tokens of the
 lines it replaces, and it is dropped if it would add, remove or reorder

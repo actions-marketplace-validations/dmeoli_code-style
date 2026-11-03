@@ -1,6 +1,29 @@
 # The style of this repository with the indentation and the continuations
-# in spaces only, and a space after a C-style cast, i.e., ( void ) x; a
-# project chooses it by the line "STYLE spaces" of its .code-format
+# in spaces only, and a space after a C-style cast, i.e., ( void ) x; the
+# brace of a class on the line of its head, the trailing comments and the
+# empty lines after public: as written, the initializers of a constructor
+# on a line of their own; a project chooses it by the line "STYLE spaces"
+# of its .code-format
 BasedOnStyle: InheritParentConfig
 UseTab: Never
 SpaceAfterCStyleCast: true
+BraceWrapping:
+  # the whole map, which replaces the one of the parent
+  AfterClass: false
+  AfterStruct: false
+  AfterUnion: false
+  AfterEnum: false
+  AfterNamespace: true
+  AfterFunction: false
+  AfterControlStatement: Never
+  BeforeElse: true
+  BeforeCatch: true
+  BeforeWhile: false
+  SplitEmptyFunction: false
+  SplitEmptyRecord: false
+AlignTrailingComments:
+  Kind: Leave
+EmptyLineAfterAccessModifier: Leave
+BreakConstructorInitializers: BeforeColon
+ConstructorInitializerIndentWidth: 1
+PenaltyBreakOpenParenthesis: 1000
