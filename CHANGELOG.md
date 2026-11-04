@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-11-04
+
 ### Added
 
 - the arguments of a template in the code within the prose of the comments
@@ -132,7 +134,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (GitLab) and of pull requests (GitHub) with the suggestions on their
   lines, and their tests
 
-[Unreleased]: https://github.com/dmeoli/code-style/compare/v1.5.1...HEAD
+[Unreleased]: https://github.com/dmeoli/code-style/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/dmeoli/code-style/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/dmeoli/code-style/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/dmeoli/code-style/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/dmeoli/code-style/compare/v1.3.2...v1.4.0
