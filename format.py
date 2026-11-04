@@ -16,7 +16,11 @@ the layout; this script adds what clang-format has no option for:
     columns broken after a comma, or after a semicolon of a for;
   - the C++ in the \code ... \endcode blocks of the comments of
     Doxygen, and of its pages (.dox), formatted as the rest, within the
-    columns that the prefix of the comment leaves.
+    columns that the prefix of the comment leaves;
+  - the arguments of a template in the code within the prose of those
+    comments and pages (the text of \ref NAME "TEXT", the word after \c
+    or \p, <tt>, <code> and `), spaced as in the code, i.e.,
+    EdgeMap< bool > and std::map< int , std::vector< int > >.
 
 Usage: format.py [--check] [--lines FIRST:LAST | --git | --since REF]
                  FILE...
@@ -584,11 +588,148 @@ def format_doc_code(text, clang_format='clang-format', path='file.h'):
     return '\n'.join(out)
 
 
+def comment_spans(text):
+    """The spans ( start , end ) of the comments of the text, by the same
+    scan as mask(), which skips the string and character literals."""
+    spans = []
+    i, n = 0, len(text)
+    while i < n:
+        c = text[i]
+        if text.startswith('//', i):
+            j = text.find('\n', i)
+            j = n if j < 0 else j
+            spans.append((i, j))
+            i = j
+        elif text.startswith('/*', i):
+            j = text.find('*/', i + 2)
+            j = n if j < 0 else j + 2
+            spans.append((i, j))
+            i = j
+        elif c == 'R' and text.startswith('R"', i):
+            m = re.match(r'R"([^(]*)\(', text[i:])
+            end = text.find(')' + m.group(1) + '"', i)
+            i = n if end < 0 else end + len(m.group(1)) + 2
+        elif c in '"\'':
+            if c == "'" and i > 0 and text[i - 1].isalnum():
+                i += 1
+                continue
+            j = i + 1
+            while j < n and text[j] != c:
+                j += 2 if text[j] == '\\' else 1
+            i = j + 1
+        else:
+            i += 1
+    return spans
+
+
+def angle_end(code, i):
+    """The position of the > that closes the < at i, or -1."""
+    depth = 0
+    for j in range(i, len(code)):
+        if code[j] == '<':
+            depth += 1
+        elif code[j] == '>':
+            depth -= 1
+            if depth == 0:
+                return j
+    return -1
+
+
+def split_top(inner):
+    """The parts of inner between its commas out of any angle brackets."""
+    parts, depth, start = [], 0, 0
+    for j, c in enumerate(inner):
+        if c == '<':
+            depth += 1
+        elif c == '>':
+            depth -= 1
+        elif c == ',' and depth == 0:
+            parts.append(inner[start:j])
+            start = j + 1
+    parts.append(inner[start:])
+    return parts
+
+
+def space_templates(code):
+    """The arguments of the templates of a piece of code spaced as in the
+    code: one space inside the angle brackets, and before and after a
+    comma; a < that closes nothing, follows no name or operator, or opens
+    something that is no list of types and values (an HTML tag) stays."""
+    out, i = [], 0
+    while i < len(code):
+        c = code[i]
+        if c == '<' and i > 0 and (code[i - 1].isalnum() or
+                                   code[i - 1] == '_') \
+                and not re.search(r'\boperator$', code[:i]):
+            j = angle_end(code, i)
+            inner = code[i + 1:j] if j > 0 else ''
+            if inner.strip() and re.fullmatch(r'[\w:\s,*&<>.\[\]]*', inner) \
+                    and not inner.lstrip().startswith(('/', '<')):
+                args = ' , '.join(space_templates(p.strip())
+                                  for p in split_top(inner))
+                out.append('< ' + args + ' >')
+                i = j + 1
+                continue
+        out.append(c)
+        i += 1
+    return ''.join(out)
+
+
+# the code within the prose of Doxygen: the text of \ref NAME "TEXT", the
+# word after \c or \p, <tt> ... </tt>, <code> ... </code> and ` ... `
+INLINE_CODE = re.compile(r'([\\@]ref\s+\S+\s+")([^"\n]*)(")'
+                         r'|([\\@][cp][ \t]+)(\S+)()'
+                         r'|(<tt>)(.*?)(</tt>)'
+                         r'|(<code>)(.*?)(</code>)'
+                         r'|(`)([^`\n]+)(`)')
+
+# what in the prose is no prose: blocks of code, formulas, verbatim text
+NOT_PROSE = re.compile(r'[\\@]code\b.*?[\\@]endcode\b'
+                       r'|[\\@]f\$.*?[\\@]f\$|[\\@]f\[.*?[\\@]f\]'
+                       r'|[\\@]f\{.*?[\\@]f\}'
+                       r'|[\\@]verbatim\b.*?[\\@]endverbatim\b', re.S)
+
+
+def space_prose(doc):
+    """The code within the prose of doc, a comment or a page of Doxygen,
+    with the arguments of its templates spaced as in the code."""
+    def inline(m):
+        g = m.groups()
+        for k in range(0, len(g), 3):
+            if g[k] is not None:
+                return g[k] + space_templates(g[k + 1]) + g[k + 2]
+        return m.group(0)
+    out, last = [], 0
+    for m in NOT_PROSE.finditer(doc):
+        out.append(INLINE_CODE.sub(inline, doc[last:m.start()]))
+        out.append(m.group(0))
+        last = m.end()
+    out.append(INLINE_CODE.sub(inline, doc[last:]))
+    return ''.join(out)
+
+
+def format_doc_inline(text, path='file.h'):
+    """The code within the prose of the comments, or of a page of Doxygen
+    (.dox) whole, with the arguments of its templates spaced as in the
+    code [see space_prose()]."""
+    if path.endswith('.dox'):
+        return space_prose(text)
+    out, last = [], 0
+    for a, b in comment_spans(text):
+        out.append(text[last:a])
+        out.append(space_prose(text[a:b]))
+        last = b
+    out.append(text[last:])
+    return ''.join(out)
+
+
 def format_text(text, clang_format='clang-format', path='file.h'):
     if path.endswith('.dox'):
-        return format_doc_code(text, clang_format, path)
+        return format_doc_inline(format_doc_code(text, clang_format, path),
+                                 path)
     text = format_code(text, clang_format, path)
-    return format_doc_code(text, clang_format, path)
+    return format_doc_inline(format_doc_code(text, clang_format, path),
+                             path)
 
 
 # the characters that a formatting may add to the tokens of the code: the

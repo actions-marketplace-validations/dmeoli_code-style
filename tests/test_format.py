@@ -67,6 +67,16 @@ CASES = [
      '///\\endcode\nint f();\n',
      ['/// AddMap< M1 , M2 > am( m1 , m2 );\n',
       '/// while( ! q.empty() ) {\n///  q.pop();\n'], []),
+    ('the templates of the code in the prose of a comment spaced',
+     '/// A \\ref concepts::Graph::EdgeMap "GR::EdgeMap<bool>", a\n'
+     '/// \\c std::map<int,std::vector<int>>, <tt>Map<K, V></tt> and `A<B>`.\n'
+     'int f();\n',
+     ['"GR::EdgeMap< bool >"', '\\c std::map< int , std::vector< int > >',
+      '<tt>Map< K , V ></tt>', '`A< B >`'], []),
+    ('the prose of a comment that is no code is left alone',
+     '/** a<b, <b>bold</b>, \\f$ x<y> \\f$, operator< and \\c a</b> */\n'
+     'int f();\n',
+     ['a<b, <b>bold</b>, \\f$ x<y> \\f$, operator< and \\c a</b>'], []),
     ('a block of code that is no C++ is left alone',
      '///\\code\n///@nodes\n///label  coordinates\n///0  (20,100)\n'
      '///\\endcode\nint f();\n',
@@ -86,13 +96,16 @@ CASES = [
 
 
 def dox_page():
-    """A page of Doxygen has its blocks of code formatted, the text not."""
+    """A page of Doxygen has its blocks of code formatted, the text not but
+    for the templates of the code in it."""
     import tempfile as tf
-    src = ('/**\n\\page p A page\n\nSome text, with(odd , spacing).\n\n'
+    src = ('/**\n\\page p A page\n\nSome text, with(odd , spacing), '
+           'and \\c Map<K,V>.\n\n'
            '\\code\nDijkstra<>::SetPredMap<NullMap<Node,Arc> >::Create\n'
            '\\endcode\n*/\n')
     out = fmt.format_text(src, path=os.path.join(HERE, 'page.dox'))
-    return 'Some text, with(odd , spacing).' in out and \
+    return 'Some text, with(odd , spacing), and \\c Map< K , V >.' in out \
+        and \
         'Dijkstra<>::SetPredMap< NullMap< Node , Arc > >::Create' in out
 
 
@@ -259,10 +272,12 @@ def run():
     finally:
         shutil.rmtree(work)
     if dox_page():
-        print('ok   a page of Doxygen has only its blocks of code formatted')
+        print('ok   a page of Doxygen has its blocks of code and its '
+              'templates formatted')
     else:
         failed += 1
-        print('FAIL a page of Doxygen has only its blocks of code formatted')
+        print('FAIL a page of Doxygen has its blocks of code and its '
+              'templates formatted')
     if generated_skipped():
         print('ok   a generated file is left as it is')
     else:

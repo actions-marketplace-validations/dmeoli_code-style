@@ -35,6 +35,11 @@ then applies the rules that clang-format has no option for:
   the rest within the columns that the prefix of the comment leaves; a
   block that is no C++ (e.g., a file format, a shell command) or that
   clang-format would change in more than the spaces is left alone.
+- the arguments of a template in the code within the prose of those
+  comments and pages (the text of `\ref NAME "TEXT"`, the word after `\c` or
+  `\p`, `<tt>`, `<code>` and backticks), spaced as in the code, e.g.,
+  `GR::EdgeMap< bool >`; the formulas, the blocks of code and verbatim text,
+  the HTML tags and `operator<` are left alone.
 
 The `.clang-format` sets the rest: an indentation of one space, the spaces
 inside parentheses, brackets and angles (`if( x )`, `v[ i ]`,

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- the arguments of a template in the code within the prose of the comments
+  of Doxygen and of its pages (the text of `\ref NAME "TEXT"`, the word after
+  `\c` or `\p`, `<tt>`, `<code>` and backticks) are spaced as in the code,
+  e.g., `GR::EdgeMap< bool >` and `std::map< int , std::vector< int > >`,
+  while the formulas, the blocks of code and verbatim text, the HTML tags and
+  `operator<` are left alone
+
 ## [1.5.1] - 2026-11-04
 
 ### Fixed
