@@ -35,6 +35,11 @@ then applies the rules that clang-format has no option for:
   the rest within the columns that the prefix of the comment leaves; a
   block that is no C++ (e.g., a file format, a shell command) or that
   clang-format would change in more than the spaces is left alone.
+- the arguments of a template in the code within the prose of those
+  comments and pages (the text of `\ref NAME "TEXT"`, the word after `\c` or
+  `\p`, `<tt>`, `<code>` and backticks), spaced as in the code, e.g.,
+  `GR::EdgeMap< bool >`; the formulas, the blocks of code and verbatim text,
+  the HTML tags and `operator<` are left alone.
 
 The `.clang-format` sets the rest: an indentation of one space, the spaces
 inside parentheses, brackets and angles (`if( x )`, `v[ i ]`,
@@ -46,7 +51,15 @@ that a program writes (`DO NOT EDIT` or `@generated` in its first lines) is
 skipped. A file with no `.clang-format` up its tree is formatted with the
 one of this repository; hence, a project in this style needs no copy of
 it, and one with a style of its own keeps its `.clang-format` at its root,
-which then takes precedence.
+which then takes precedence. Between the two, a project may choose one of
+the variants in `styles/` by a line `STYLE NAME` of its `.code-format` [see
+below], each variant being a `.clang-format` that inherits the one of this
+repository and changes only what it names: `STYLE spaces` indents and
+aligns the continuations by spaces alone, where the reference uses tabs
+from the eighth column on, writes a space after a cast, `( void ) x`,
+opens the brace of a class on the line of its head, leaves the trailing
+comments and the empty lines after an access specifier as they are, and
+puts the initializers of a constructor on a line of their own.
 
 Each change that `format.py` makes is compared with the tokens of the
 lines it replaces, and it is dropped if it would add, remove or reorder
@@ -78,13 +91,16 @@ repository serves also its submodules), one per line:
 ```
 # PATTERN  COMMAND...
 *.txt      python3 scripts/cfgformat.py
+STYLE      spaces
 ```
 
 The pattern is matched against the name of the file, and the command is
 run from the directory of the `.code-format` with `--check` (if given) and
 the files that match; it formats them entirely, and exits with status 1
 when some file would change. A file that no formatter takes is skipped with
-a message, which `--only-known` suppresses.
+a message, which `--only-known` suppresses. The line `STYLE NAME` is no
+formatter: it chooses the variant `styles/NAME` of the style for the C++
+sources of the project.
 
 ## In the IDE
 

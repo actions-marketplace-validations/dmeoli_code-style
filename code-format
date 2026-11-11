@@ -11,11 +11,13 @@ that the one of a repository also serves its submodules), one per line:
 
 where PATTERN is a glob matched against the name of the file (e.g., *.txt)
 and COMMAND is run from the directory of the .code-format with --check,
-if given, and the files that match it; it has to take them whole, to change nothing with --check,
-and to exit with status 1 if some file would change. Lines starting with #
-are comments. A file that no formatter takes is left alone, and said
-unless --only-known is given (as a hook of git does, which passes every
-file of a commit).
+if given, and the files that match it; it has to take them whole, to
+change nothing with --check, and to exit with status 1 if some file would
+change. Lines starting with # are comments, and a line STYLE NAME chooses
+for the C++ sources the variant styles/NAME of the style, next to this
+script, when no .clang-format is up their tree (see format.py). A file
+that no formatter takes is left alone, and said unless --only-known is
+given (as a hook of git does, which passes every file of a commit).
 
 Usage: code-format [--check] [--only-known]
                    [--lines FIRST:LAST | --git | --since REF] FILE...
@@ -66,6 +68,8 @@ def rules_of(root):
                 if not line or line.startswith('#'):
                     continue
                 pattern, _, command = line.partition(' ')
+                if pattern == 'STYLE':
+                    continue
                 if command.strip():
                     rules.append((pattern, shlex.split(command)))
     except OSError:

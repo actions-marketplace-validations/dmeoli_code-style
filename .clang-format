@@ -62,3 +62,7 @@ AlignConsecutiveAssignments: false
 AlignAfterOpenBracket: Align
 BinPackArguments: true
 BinPackParameters: true
+# the macros that make a string of their argument, e.g., the coloured
+# messages GREEN( All tests passed!! ) of the testers: a space added among
+# the tokens of the argument would be in the string
+WhitespaceSensitiveMacros: [ GREEN , RED , YELLOW , STRINGIFY , STRINGIZE ]

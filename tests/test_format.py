@@ -67,6 +67,16 @@ CASES = [
      '///\\endcode\nint f();\n',
      ['/// AddMap< M1 , M2 > am( m1 , m2 );\n',
       '/// while( ! q.empty() ) {\n///  q.pop();\n'], []),
+    ('the templates of the code in the prose of a comment spaced',
+     '/// A \\ref concepts::Graph::EdgeMap "GR::EdgeMap<bool>", a\n'
+     '/// \\c std::map<int,std::vector<int>>, <tt>Map<K, V></tt> and `A<B>`.\n'
+     'int f();\n',
+     ['"GR::EdgeMap< bool >"', '\\c std::map< int , std::vector< int > >',
+      '<tt>Map< K , V ></tt>', '`A< B >`'], []),
+    ('the prose of a comment that is no code is left alone',
+     '/** a<b, <b>bold</b>, \\f$ x<y> \\f$, operator< and \\c a</b> */\n'
+     'int f();\n',
+     ['a<b, <b>bold</b>, \\f$ x<y> \\f$, operator< and \\c a</b>'], []),
     ('a block of code that is no C++ is left alone',
      '///\\code\n///@nodes\n///label  coordinates\n///0  (20,100)\n'
      '///\\endcode\nint f();\n',
@@ -75,6 +85,9 @@ CASES = [
      '///\\code\n///  std::cout << "a" <<\n///    << "b";\n'
      '///\\endcode\nint f();\n',
      ['///  std::cout << "a" <<\n'], ['< <']),
+    ('the argument of a macro that makes a string of it is left alone',
+     'int f() { cout << GREEN( All tests passed!! ) << endl; }\n',
+     ['GREEN( All tests passed!! )'], ['! !']),
     ('a long string literal is not split',
      'void f() { g( "a string literal that is long enough to go past the '
      'limit of the line" ); }\n',
@@ -83,13 +96,16 @@ CASES = [
 
 
 def dox_page():
-    """A page of Doxygen has its blocks of code formatted, the text not."""
+    """A page of Doxygen has its blocks of code formatted, the text not but
+    for the templates of the code in it."""
     import tempfile as tf
-    src = ('/**\n\\page p A page\n\nSome text, with(odd , spacing).\n\n'
+    src = ('/**\n\\page p A page\n\nSome text, with(odd , spacing), '
+           'and \\c Map<K,V>.\n\n'
            '\\code\nDijkstra<>::SetPredMap<NullMap<Node,Arc> >::Create\n'
            '\\endcode\n*/\n')
     out = fmt.format_text(src, path=os.path.join(HERE, 'page.dox'))
-    return 'Some text, with(odd , spacing).' in out and \
+    return 'Some text, with(odd , spacing), and \\c Map< K , V >.' in out \
+        and \
         'Dijkstra<>::SetPredMap< NullMap< Node , Arc > >::Create' in out
 
 
@@ -129,6 +145,103 @@ def style_default():
         shutil.rmtree(work)
 
 
+def style_variant():
+    """A file with no .clang-format above it, whose .code-format chooses the
+    variant spaces, is indented by spaces only and has a space after a
+    cast; with no .code-format it takes tabs and no such space, and a
+    variant that does not exist is refused."""
+    src = ('void f(){if(a){if(b){x = some_function(first_argument_value, '
+           'second_argument_value, third_argument);(void)h(x);}}}\n')
+    work = tempfile.mkdtemp()
+    try:
+        path = os.path.join(work, 'case.cpp')
+        with open(path, 'w') as f:
+            f.write(src)
+        if fmt.main([path]) != 0:
+            return False
+        with open(path) as f:
+            plain = f.read()
+        with open(os.path.join(work, '.code-format'), 'w') as f:
+            f.write('# the variant of the style\nSTYLE spaces\n')
+        with open(path, 'w') as f:
+            f.write(src)
+        if fmt.main([path]) != 0:
+            return False
+        with open(path) as f:
+            spaces = f.read()
+        with open(os.path.join(work, '.code-format'), 'w') as f:
+            f.write('STYLE nonesuch\n')
+        refused = fmt.main([path]) == 2
+        return ('\t' in plain) and ('( void )h' in plain) and \
+            ('\t' not in spaces) and ('( void ) h' in spaces) and refused
+    finally:
+        shutil.rmtree(work)
+
+
+def break_aligned():
+    """A call that the spaces before the commas push past the limit, deep
+    enough for its arguments to start past the eighth column: each line
+    broken goes on in the column of the first argument, by tabs with the
+    style of this repository and by spaces alone with the variant
+    spaces."""
+    args = ','.join('a%d' % i for i in range(40))
+    src = 'void f(){if(x){if(y){if(z){if(w){g(%s);}}}}}\n' % args
+    outs = []
+    for variant in (None, 'spaces'):
+        work = tempfile.mkdtemp()
+        try:
+            path = os.path.join(work, 'case.cpp')
+            with open(path, 'w') as f:
+                f.write(src)
+            if variant:
+                with open(os.path.join(work, '.code-format'), 'w') as f:
+                    f.write('STYLE %s\n' % variant)
+            if fmt.main([path]) != 0:
+                return False
+            with open(path) as f:
+                outs.append(f.read())
+        finally:
+            shutil.rmtree(work)
+    for out in outs:
+        lines = out.split('\n')
+        first = next(i for i, l in enumerate(lines) if 'g( a0' in l)
+        col = lines[first].expandtabs(8).index('a0')
+        last = next(i for i in range(first, len(lines))
+                    if lines[i].rstrip().endswith(');'))
+        if last == first or any(
+                len(l.expandtabs(8)) - len(l.expandtabs(8).lstrip()) != col
+                for l in lines[first + 1:last + 1]):
+            return False
+    return '\t' in outs[0] and '\t' not in outs[1]
+
+
+def break_least_nested():
+    """An item of a braced list that the spaces before the commas push past
+    the limit: the line is broken after a comma of the list, not after the
+    one among the arguments of a template, and the rest goes on in the
+    column of the first item."""
+    src = ('static const C c[] = {\n'
+           ' { "bb-shared-openmp" , "openmp" ,\n'
+           '   test_bb_parallel< 0 , ADS::OpenMPExecutor > } ,\n'
+           ' };\n')
+    work = tempfile.mkdtemp()
+    try:
+        path = os.path.join(work, 'case.cpp')
+        with open(path, 'w') as f:
+            f.write(src)
+        with open(os.path.join(work, '.code-format'), 'w') as f:
+            f.write('STYLE spaces\n')
+        if fmt.main([path]) != 0:
+            return False
+        with open(path) as f:
+            lines = f.read().split('\n')
+    finally:
+        shutil.rmtree(work)
+    k = next(i for i, l in enumerate(lines) if 'bb-shared' in l)
+    return lines[k].endswith('"openmp" ,') and \
+        lines[k + 1].index('test_bb') == lines[k].index('"bb-shared')
+
+
 def generated_skipped():
     """A file that says it is generated is left as it is."""
     return fmt.generated('/* FILE GENERATED AUTOMATICALLY, DO NOT EDIT */\n') \
@@ -159,10 +272,12 @@ def run():
     finally:
         shutil.rmtree(work)
     if dox_page():
-        print('ok   a page of Doxygen has only its blocks of code formatted')
+        print('ok   a page of Doxygen has its blocks of code and its '
+              'templates formatted')
     else:
         failed += 1
-        print('FAIL a page of Doxygen has only its blocks of code formatted')
+        print('FAIL a page of Doxygen has its blocks of code and its '
+              'templates formatted')
     if generated_skipped():
         print('ok   a generated file is left as it is')
     else:
@@ -171,13 +286,19 @@ def run():
     for check, name in ((restrict_keeps_code, 'a change paired with other '
                          'code is not taken'),
                         (style_default, 'a file with no .clang-format above '
-                         'it takes the one of this repository')):
+                         'it takes the one of this repository'),
+                        (style_variant, 'the variant of the style that '
+                         '.code-format chooses'),
+                        (break_aligned, 'a line broken after a comma goes '
+                         'on in the column of the first argument'),
+                        (break_least_nested, 'a line is broken after a '
+                         'comma of the list, not of a template')):
         if check():
             print('ok   %s' % name)
         else:
             failed += 1
             print('FAIL %s' % name)
-    print('%d of %d failed' % (failed, len(CASES) + 4))
+    print('%d of %d failed' % (failed, len(CASES) + 7))
     return 1 if failed else 0
 
 

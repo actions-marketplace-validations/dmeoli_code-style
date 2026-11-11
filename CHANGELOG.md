@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-11-04
+
+### Added
+
+- the arguments of a template in the code within the prose of the comments
+  of Doxygen and of its pages (the text of `\ref NAME "TEXT"`, the word after
+  `\c` or `\p`, `<tt>`, `<code>` and backticks) are spaced as in the code,
+  e.g., `GR::EdgeMap< bool >` and `std::map< int , std::vector< int > >`,
+  while the formulas, the blocks of code and verbatim text, the HTML tags and
+  `operator<` are left alone
+
+## [1.5.1] - 2026-11-04
+
+### Fixed
+
+- the arguments of the macros that make a string of them (`GREEN`, `RED`,
+  `YELLOW`, `STRINGIFY`, `STRINGIZE`) are left as they are, since a space
+  that clang-format added among their tokens, e.g., `!!` made `! !`, was in
+  the string
+- a line that the spaces before the commas push past the limit is broken
+  after a comma among the least nested ones, counting the braces and the
+  angle brackets of a template too, and goes on in the column of the first
+  item of the call, braced list or template it is in, or in that of the
+  items of a list opened on a line above; before, an item of a braced list
+  was broken among the arguments of a template and went on in the column
+  of the list
+- a line in the middle of a block comment is no longer broken, its commas
+  being masked as those of the comments of one line
+
+## [1.5.0] - 2026-11-03
+
+### Changed
+
+- the variant `spaces` opens the brace of a class on the line of its head,
+  leaves the trailing comments and the empty lines after an access
+  specifier as they are, and puts the initializers of a constructor on a
+  line of their own
+
+## [1.4.0] - 2026-11-03
+
+### Added
+
+- the variants of the style in `styles/`, each a `.clang-format` that
+  inherits the one of this repository and changes only what it names, which
+  a project with no `.clang-format` of its own chooses by a line
+  `STYLE NAME` of its `.code-format`; the variant `spaces` indents and
+  aligns by spaces alone and writes a space after a cast
+
+### Fixed
+
+- a line that the spaces before the commas push past the limit is broken
+  with tabs only when the style that clang-format finds for the file
+  indents by tabs, and by spaces alone otherwise
+- a line broken again that goes on with the line above, i.e., an argument
+  of a call opened there, keeps the column of that line instead of moving
+  two columns to the right
+
 ## [1.3.2] - 2026-11-01
 
 ### Fixed
@@ -77,7 +134,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (GitLab) and of pull requests (GitHub) with the suggestions on their
   lines, and their tests
 
-[Unreleased]: https://github.com/dmeoli/code-style/compare/v1.3.2...HEAD
+[Unreleased]: https://github.com/dmeoli/code-style/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/dmeoli/code-style/compare/v1.5.1...v1.6.0
+[1.5.1]: https://github.com/dmeoli/code-style/compare/v1.5.0...v1.5.1
+[1.5.0]: https://github.com/dmeoli/code-style/compare/v1.4.0...v1.5.0
+[1.4.0]: https://github.com/dmeoli/code-style/compare/v1.3.2...v1.4.0
 [1.3.2]: https://github.com/dmeoli/code-style/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/dmeoli/code-style/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/dmeoli/code-style/compare/v1.2.0...v1.3.0

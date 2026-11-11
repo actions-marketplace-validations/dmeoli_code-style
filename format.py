@@ -16,7 +16,11 @@ the layout; this script adds what clang-format has no option for:
     columns broken after a comma, or after a semicolon of a for;
   - the C++ in the \code ... \endcode blocks of the comments of
     Doxygen, and of its pages (.dox), formatted as the rest, within the
-    columns that the prefix of the comment leaves.
+    columns that the prefix of the comment leaves;
+  - the arguments of a template in the code within the prose of those
+    comments and pages (the text of \ref NAME "TEXT", the word after \c
+    or \p, <tt>, <code> and `), spaced as in the code, i.e.,
+    EdgeMap< bool > and std::map< int , std::vector< int > >.
 
 Usage: format.py [--check] [--lines FIRST:LAST | --git | --since REF]
                  FILE...
@@ -27,9 +31,12 @@ whole), so that the code around is left as it is;
 with --check nothing is written, and the files that would change are
 listed, with exit status 1 if there are any. A file with no .clang-format
 in its directory or above it is formatted with the one next to this
-script. A .dox file only has its blocks of code formatted.
+script, or with the variant styles/NAME/.clang-format of it if the first
+.code-format up its tree has the line STYLE NAME. A .dox file only has its
+blocks of code formatted.
 """
 
+import functools
 import os
 import re
 import subprocess
@@ -390,13 +397,40 @@ def align_continuations(text):
     return '\n'.join(lines)
 
 
-def break_long(text, limit=None):
-    """A line past the limit broken after the last comma that fits, or the
-    last semicolon of the header of a for, the rest aligned with the first
-    argument of the call (or the first part of the for) it is in."""
+def brackets(m_line):
+    """For each offset of a masked line, the offsets of the brackets open
+    there, the outermost first: parentheses, braces, square brackets and
+    the angle brackets of a template, i.e., a < right after a name, as in
+    vector< int >, where a comparison has a space before it."""
+    res, stack = [], []
+    for k, c in enumerate(m_line):
+        if c in '([{':
+            stack.append(k)
+        elif c in ')]}':
+            while stack and m_line[stack[-1]] == '<':
+                stack.pop()             # a < that was not a template
+            if stack:
+                stack.pop()
+        elif c == '<' and k and (m_line[k - 1].isalnum() or
+                                 m_line[k - 1] == '_'):
+            stack.append(k)
+        elif c == '>' and stack and m_line[stack[-1]] == '<' and \
+                m_line[k - 1] != '-':
+            stack.pop()
+        res.append(list(stack))
+    return res
+
+
+def break_long(text, limit=None, tabs=True):
+    """A line past the limit broken after the last comma that fits among
+    the least nested ones, or the last semicolon of the header of a for,
+    the rest aligned with the first argument of the call (or the first
+    part of the for, or the first item of the braced list) it is in, by
+    tabs and spaces if tabs, else by spaces alone."""
     limit = limit or LIMIT
     res = []
     inside = in_directive(text)
+    m_text = mask(text)     # a line in the middle of a comment is masked
     pos = 0
     for line in text.split('\n'):
         start = pos
@@ -404,36 +438,49 @@ def break_long(text, limit=None):
         if inside(start):
             res.append(line)   # a directive is left to clang-format
             continue
+        m_line = m_text[start:start + len(line)]
         while len(line.expandtabs(8)) > limit:
-            m_line = mask(line)
-            cut = -1
+            opens = brackets(m_line)
+            # the last cut that fits among the least nested ones
+            cut, depth = -1, None
             for m in re.finditer(r' ,| ;(?= )', m_line):
-                if len(line[:m.end()].expandtabs(8)) <= limit:
-                    cut = m.end()
+                if len(line[:m.end()].expandtabs(8)) > limit:
+                    continue
+                d = len(opens[m.start()])
+                if depth is None or d <= depth:
+                    cut, depth = m.end(), d
             if cut < 0:
                 break
-            # the column of the first argument of the innermost open call
-            depth, col = 0, None
-            stack = []
-            for k in range(cut):
-                c = m_line[k]
-                if c == '(':
-                    stack.append(k)
-                elif c == ')':
-                    if stack:
-                        stack.pop()
+            # the column of the first item of the innermost open call,
+            # braced list or template
+            stack = opens[cut - 1]
+            indent = len(line.expandtabs(8)) - len(line.lstrip())
             if stack:
                 col = len(line[:stack[-1] + 1].expandtabs(8)) + 1
+            elif res and res[-1].rstrip()[-1:] in (',', '(', '{', '['):
+                col = indent           # an item of a list open above
             else:
-                col = len(line) - len(line.lstrip()) + 2
+                col = indent + 2
             head, tail = line[:cut].rstrip(), line[cut:].lstrip()
             if not tail:
                 break
             res.append(head)
-            pad = '\t' * (col // 8) + ' ' * (col % 8)
+            pad = '\t' * (col // 8) + ' ' * (col % 8) if tabs else ' ' * col
+            m_line = pad + m_line[len(line) - len(tail):]
             line = pad + tail
         res.append(line)
     return '\n'.join(res)
+
+
+@functools.lru_cache(maxsize=None)
+def uses_tabs(clang_format, style, path):
+    """Whether the style that clang-format finds for path indents by tabs,
+    i.e., its UseTab is not Never."""
+    out = subprocess.run([clang_format, '--style=' + style,
+                          '--assume-filename=' + path, '--dump-config'],
+                         capture_output=True, text=True, check=True).stdout
+    m = re.search(r'^UseTab:\s*(\w+)', out, re.M)
+    return m is not None and m.group(1) != 'Never'
 
 
 def format_code(text, clang_format='clang-format', path='file.h',
@@ -455,7 +502,7 @@ def format_code(text, clang_format='clang-format', path='file.h',
     text = indent_closing(text)
     text = column_zero(text)
     text = align_continuations(text)
-    text = break_long(text, limit)
+    text = break_long(text, limit, uses_tabs(clang_format, style, path))
     return text
 
 
@@ -541,11 +588,148 @@ def format_doc_code(text, clang_format='clang-format', path='file.h'):
     return '\n'.join(out)
 
 
+def comment_spans(text):
+    """The spans ( start , end ) of the comments of the text, by the same
+    scan as mask(), which skips the string and character literals."""
+    spans = []
+    i, n = 0, len(text)
+    while i < n:
+        c = text[i]
+        if text.startswith('//', i):
+            j = text.find('\n', i)
+            j = n if j < 0 else j
+            spans.append((i, j))
+            i = j
+        elif text.startswith('/*', i):
+            j = text.find('*/', i + 2)
+            j = n if j < 0 else j + 2
+            spans.append((i, j))
+            i = j
+        elif c == 'R' and text.startswith('R"', i):
+            m = re.match(r'R"([^(]*)\(', text[i:])
+            end = text.find(')' + m.group(1) + '"', i)
+            i = n if end < 0 else end + len(m.group(1)) + 2
+        elif c in '"\'':
+            if c == "'" and i > 0 and text[i - 1].isalnum():
+                i += 1
+                continue
+            j = i + 1
+            while j < n and text[j] != c:
+                j += 2 if text[j] == '\\' else 1
+            i = j + 1
+        else:
+            i += 1
+    return spans
+
+
+def angle_end(code, i):
+    """The position of the > that closes the < at i, or -1."""
+    depth = 0
+    for j in range(i, len(code)):
+        if code[j] == '<':
+            depth += 1
+        elif code[j] == '>':
+            depth -= 1
+            if depth == 0:
+                return j
+    return -1
+
+
+def split_top(inner):
+    """The parts of inner between its commas out of any angle brackets."""
+    parts, depth, start = [], 0, 0
+    for j, c in enumerate(inner):
+        if c == '<':
+            depth += 1
+        elif c == '>':
+            depth -= 1
+        elif c == ',' and depth == 0:
+            parts.append(inner[start:j])
+            start = j + 1
+    parts.append(inner[start:])
+    return parts
+
+
+def space_templates(code):
+    """The arguments of the templates of a piece of code spaced as in the
+    code: one space inside the angle brackets, and before and after a
+    comma; a < that closes nothing, follows no name or operator, or opens
+    something that is no list of types and values (an HTML tag) stays."""
+    out, i = [], 0
+    while i < len(code):
+        c = code[i]
+        if c == '<' and i > 0 and (code[i - 1].isalnum() or
+                                   code[i - 1] == '_') \
+                and not re.search(r'\boperator$', code[:i]):
+            j = angle_end(code, i)
+            inner = code[i + 1:j] if j > 0 else ''
+            if inner.strip() and re.fullmatch(r'[\w:\s,*&<>.\[\]]*', inner) \
+                    and not inner.lstrip().startswith(('/', '<')):
+                args = ' , '.join(space_templates(p.strip())
+                                  for p in split_top(inner))
+                out.append('< ' + args + ' >')
+                i = j + 1
+                continue
+        out.append(c)
+        i += 1
+    return ''.join(out)
+
+
+# the code within the prose of Doxygen: the text of \ref NAME "TEXT", the
+# word after \c or \p, <tt> ... </tt>, <code> ... </code> and ` ... `
+INLINE_CODE = re.compile(r'([\\@]ref\s+\S+\s+")([^"\n]*)(")'
+                         r'|([\\@][cp][ \t]+)(\S+)()'
+                         r'|(<tt>)(.*?)(</tt>)'
+                         r'|(<code>)(.*?)(</code>)'
+                         r'|(`)([^`\n]+)(`)')
+
+# what in the prose is no prose: blocks of code, formulas, verbatim text
+NOT_PROSE = re.compile(r'[\\@]code\b.*?[\\@]endcode\b'
+                       r'|[\\@]f\$.*?[\\@]f\$|[\\@]f\[.*?[\\@]f\]'
+                       r'|[\\@]f\{.*?[\\@]f\}'
+                       r'|[\\@]verbatim\b.*?[\\@]endverbatim\b', re.S)
+
+
+def space_prose(doc):
+    """The code within the prose of doc, a comment or a page of Doxygen,
+    with the arguments of its templates spaced as in the code."""
+    def inline(m):
+        g = m.groups()
+        for k in range(0, len(g), 3):
+            if g[k] is not None:
+                return g[k] + space_templates(g[k + 1]) + g[k + 2]
+        return m.group(0)
+    out, last = [], 0
+    for m in NOT_PROSE.finditer(doc):
+        out.append(INLINE_CODE.sub(inline, doc[last:m.start()]))
+        out.append(m.group(0))
+        last = m.end()
+    out.append(INLINE_CODE.sub(inline, doc[last:]))
+    return ''.join(out)
+
+
+def format_doc_inline(text, path='file.h'):
+    """The code within the prose of the comments, or of a page of Doxygen
+    (.dox) whole, with the arguments of its templates spaced as in the
+    code [see space_prose()]."""
+    if path.endswith('.dox'):
+        return space_prose(text)
+    out, last = [], 0
+    for a, b in comment_spans(text):
+        out.append(text[last:a])
+        out.append(space_prose(text[a:b]))
+        last = b
+    out.append(text[last:])
+    return ''.join(out)
+
+
 def format_text(text, clang_format='clang-format', path='file.h'):
     if path.endswith('.dox'):
-        return format_doc_code(text, clang_format, path)
+        return format_doc_inline(format_doc_code(text, clang_format, path),
+                                 path)
     text = format_code(text, clang_format, path)
-    return format_doc_code(text, clang_format, path)
+    return format_doc_inline(format_doc_code(text, clang_format, path),
+                             path)
 
 
 # the characters that a formatting may add to the tokens of the code: the
@@ -614,6 +798,42 @@ def has_style(path):
         d = os.path.dirname(d)
 
 
+def named_style(path):
+    """The variant of the style (a directory of styles/, next to this
+    script) that the first .code-format up the tree of path chooses by its
+    line STYLE NAME, or None."""
+    d = os.path.dirname(os.path.abspath(path))
+    while True:
+        f = os.path.join(d, '.code-format')
+        if os.path.isfile(f):
+            with open(f, encoding='utf-8') as g:
+                for line in g:
+                    words = line.split()
+                    if len(words) == 2 and words[0] == 'STYLE':
+                        return words[1]
+            return None
+        if os.path.dirname(d) == d:
+            return None
+        d = os.path.dirname(d)
+
+
+def style_path(path):
+    """The name that clang-format is given for path, which it looks for
+    the style up the tree of: path itself if it has a .clang-format above
+    it, else the same name next to this script, or in the directory of the
+    variant that its .code-format chooses."""
+    if has_style(path):
+        return path
+    d = os.path.dirname(os.path.realpath(__file__))
+    name = named_style(path)
+    if name is not None:
+        d = os.path.join(d, 'styles', name)
+        if not os.path.isfile(os.path.join(d, '.clang-format')):
+            raise ValueError('no style %s, chosen by the .code-format of %s'
+                             % (name, path))
+    return os.path.join(d, os.path.basename(path))
+
+
 def generated(text):
     """Whether the file says in its first lines that a program writes it
     (DO NOT EDIT, @generated): its layout is the one of that program."""
@@ -662,12 +882,11 @@ def main(argv):
             text = f.read()
         if generated(text):
             continue
-        # clang-format looks for the style up the tree of the name it is given:
-        # with no .clang-format there, the name is taken next to this script
-        style_path = path if has_style(path) else os.path.join(
-            os.path.dirname(os.path.realpath(__file__)),
-            os.path.basename(path))
-        new = format_text(text, path=style_path)
+        try:
+            new = format_text(text, path=style_path(path))
+        except ValueError as e:
+            print('format.py: %s' % e, file=sys.stderr)
+            return 2
         r = ranges
         if use_git:
             r = git_ranges(path, ref)
